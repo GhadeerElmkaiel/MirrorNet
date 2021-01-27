@@ -13,6 +13,7 @@ import os.path
 
 import torch.utils.data as data
 from PIL import Image
+import numpy as np
 
 
 def make_dataset(root):
@@ -29,6 +30,7 @@ class ImageFolder(data.Dataset):
         self.joint_transform = joint_transform
         self.img_transform = img_transform
         self.target_transform = target_transform
+        self.len = len(self.imgs)
 
     def __getitem__(self, index):
         img_path, gt_path = self.imgs[index]
@@ -44,4 +46,21 @@ class ImageFolder(data.Dataset):
         return img, target
 
     def __len__(self):
-        return len(self.imgs)
+        return self.len
+
+    def sample(self, batch_size):
+        """
+        function for getting batch of items of the dataset
+        """
+        batch = {"img":[], "mask":[]}
+        indices = np.random.choice(self.len, batch_size, replace=False)
+
+        for i in indices:
+            (img, mask) = self.__getitem__(i)
+            batch["img"].append(np.asarray(img))
+            batch["mask"].append(np.asarray(mask))
+        
+        return batch
+
+
+

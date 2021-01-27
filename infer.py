@@ -17,7 +17,7 @@ from PIL import Image
 from torch.autograd import Variable
 from torchvision import transforms
 
-from config import msd_testing_root
+from config import msd_testing_root, msd_results_root
 from misc import check_mkdir, crf_refine
 from mirrornet import MirrorNet
 
@@ -27,7 +27,7 @@ torch.cuda.set_device(device_ids[0])
 ckpt_path = './ckpt'
 exp_name = 'MirrorNet'
 args = {
-    'snapshot': '160',
+    'snapshot': 'MirrorNet',
     'scale': 384,
     'crf': True
 }
@@ -37,7 +37,6 @@ img_transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
-
 to_test = {'MSD': msd_testing_root}
 
 to_pil = transforms.ToPILImage()
@@ -57,11 +56,15 @@ def main():
     with torch.no_grad():
         for name, root in to_test.items():
             img_list = [img_name for img_name in os.listdir(os.path.join(root, 'image'))]
+            # msk_list = [img_name for img_name in os.listdir(os.path.join(root, 'mask'))]
             start = time.time()
             for idx, img_name in enumerate(img_list):
+                msk_name = img_name.split('.')[0]
+                msk_name +=".png"
                 print('predicting for {}: {:>4d} / {}'.format(name, idx + 1, len(img_list)))
                 check_mkdir(os.path.join(ckpt_path, exp_name, '%s_%s_%s' % (exp_name, args['snapshot'], 'nocrf')))
                 img = Image.open(os.path.join(root, 'image', img_name))
+                msk = Image.open(os.path.join(root, 'mask', msk_name))
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
                     print("{} is a gray image.".format(name))
@@ -80,6 +83,18 @@ def main():
                     f_1 = crf_refine(np.array(img.convert('RGB')), f_1)
 
                 Image.fromarray(f_1).save(os.path.join(ckpt_path, exp_name, '%s_%s_%s' % (exp_name, args['snapshot'], 'nocrf'), img_name[:-4] + ".png"))
+                #################################### My Addition ####################################
+                image1_size = img.size
+                new_image = Image.new('RGB',(3*image1_size[0], image1_size[1]), (250,250,250))
+                img_res = Image.fromarray(f_1)
+                new_image.paste(img,(0,0))
+                new_image.paste(msk,(image1_size[0],0))
+                new_image.paste(img_res,(image1_size[0]*2,0))
+                # new_image.save(os.path.join(msd_results_root, '%s_%s' % (exp_name, args['snapshot']),
+                #                                       img_name[:-4] + "_both" +".png"))
+                new_image.save(os.path.join(msd_results_root, exp_name,
+                                                      "MNet_" + str(idx) +".png"))
+                #####################################################################################
 
             end = time.time()
             print("Average Time Is : {:.2f}".format((end - start) / len(img_list)))

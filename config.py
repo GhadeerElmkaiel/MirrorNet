@@ -8,10 +8,10 @@
  @Function: configurations.
  
 """
-backbone_path = '/home/iccd/ICCV2019_MirrorNet/backbone/resnext/resnext_101_32x4d.pth'
+backbone_path = '/home/ghadeer/Projects/MirrorNet/backbone/resnext/resnext_101_32x4d.pth'
 
-msd_training_root = "/media/iccd/disk/release/MSD/train"
+msd_training_root = "/home/ghadeer/Projects/MirrorNet/MSD/train"
 
-msd_testing_root = "/media/iccd/disk/release/MSD/test"
+msd_testing_root = "/home/ghadeer/Projects/MirrorNet/MSD/test"
 
-msd_results_root = "/media/iccd/disk/release/MSD/results"
+msd_results_root = "/home/ghadeer/Projects/MirrorNet/MSD/results"
