@@ -24,13 +24,14 @@ def make_dataset(root):
 
 
 class ImageFolder(data.Dataset):
-    def __init__(self, root, joint_transform=None, img_transform=None, target_transform=None):
+    def __init__(self, root, joint_transform=None, img_transform=None, target_transform=None, add_real_imgs=False):
         self.root = root
         self.imgs = make_dataset(root)
         self.joint_transform = joint_transform
         self.img_transform = img_transform
         self.target_transform = target_transform
         self.len = len(self.imgs)
+        self.add_real_imgs = add_real_imgs
 
     def __getitem__(self, index):
         img_path, gt_path = self.imgs[index]
@@ -52,14 +53,29 @@ class ImageFolder(data.Dataset):
         """
         function for getting batch of items of the dataset
         """
-        batch = {"img":[], "mask":[]}
+        batch = {"img":[], "mask":[], "size":[], "r_img":[], "r_mask":[]}
         indices = np.random.choice(self.len, batch_size, replace=False)
-
+        masks = []
         for i in indices:
             (img, mask) = self.__getitem__(i)
             batch["img"].append(np.asarray(img))
-            batch["mask"].append(np.asarray(mask))
-        
+            masks.append(np.asarray(mask))
+
+            img_path, gt_path = self.imgs[i]
+            img = Image.open(img_path).convert('RGB')
+            mask = Image.open(gt_path)
+            
+            # Adding the real images to the batch for debugging if needed
+            if self.add_real_imgs:
+                batch["r_img"].append(img)
+                batch["r_mask"].append(mask)
+            
+            # Adding the real image size to the batch
+            w, h = img.size
+            batch["size"].append((w, h))
+        batch["img"] = np.array(batch["img"])
+        # print(masks)
+        batch["mask"] = np.asarray(masks)/255.0
         return batch
 
 

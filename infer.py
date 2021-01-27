@@ -82,7 +82,7 @@ def main():
                 if args['crf']:
                     f_1 = crf_refine(np.array(img.convert('RGB')), f_1)
 
-                Image.fromarray(f_1).save(os.path.join(ckpt_path, exp_name, '%s_%s_%s' % (exp_name, args['snapshot'], 'nocrf'), img_name[:-4] + ".png"))
+                Image.fromarray(f_1).save(os.path.join(ckpt_path, exp_name, '%s_%s_%s' % (exp_name, args['snapshot'], 'nocrf'), img_name[:-4] +".png"))
                 #################################### My Addition ####################################
                 image1_size = img.size
                 new_image = Image.new('RGB',(3*image1_size[0], image1_size[1]), (250,250,250))
