@@ -19,10 +19,18 @@ def get_args():
                         help='developer_mode is for the phase of code development and testing (default: False)')
     parser.add_argument('--save_images', action='store_true', default=False,
                         help='save images as f_4, f_3, f_2, f_1 (default: False)')
+
+    # Training parameters
     parser.add_argument('--train', action='store_true', default=False,
                         help='Train the model (default: False)')
+    parser.add_argument('--load_model', action='store_true', default=False,
+                        help='Load pretrained model "named in snapshot"(default: False)')
+    parser.add_argument('--shuffle_dataset', action='store_false', default=True,
+                        help='Shuffle thee dataset while training (default: True)')
     parser.add_argument('--batch_size', type=int, default=10,
                         help='The batch size (default: 10)')
+    parser.add_argument('--epochs', type=int, default=500,
+                        help='The number of epoches (default: 500)')
     parser.add_argument('--device_ids', nargs='+', type=int, default=[0])
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='disables CUDA training')
@@ -47,6 +55,8 @@ def get_args():
                         help='Path to the backbone (default:'+ root_path+'/backbone/resnext/resnext_101_32x4d.pth')
     parser.add_argument('--msd_training_root', type=str, default=root_path+"/MSD/train",
                         help='Path to the training data (default: '+root_path+'/MSD/train')
+    parser.add_argument('--msd_eval_root', type=str, default=root_path+"/MSD/eval",
+                        help='Path to the evaluation data (default: '+root_path+'/MSD/eval')
     parser.add_argument('--msd_testing_root', type=str, default=root_path+"/MSD/test",
                         help='Path to the testing data (default: '+root_path+'/MSD/test')
     parser.add_argument('--msd_results_root', type=str, default=root_path+"/MSD/results",
