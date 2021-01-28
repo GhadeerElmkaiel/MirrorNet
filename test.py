@@ -4,11 +4,14 @@ import time
 from tqdm import tqdm
 
 from PIL import Image
+
 import torch
 from torch.autograd import Variable
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch import optim
+import pytorch_lightning as pl
+
 
 # from config import msd_testing_root, msd_results_root
 from misc import check_mkdir, crf_refine
@@ -28,6 +31,7 @@ def init_args(args):
     args.train = True
     args.batch_size = 6
     args.developer_mode = False
+    args.load_model = True
     args.crf = True
 
 args = get_args()
@@ -101,6 +105,7 @@ def main():
         ##############################
         # Training for number of epoches
         for epoch in range(args.epochs):
+            start_time = time.time()
             loss = 0
 
             # Defining the tqdm progress bar
@@ -191,6 +196,8 @@ def main():
 
                 text = text.ljust(40)
                 pbar.set_description(text)
+            print("Needed time:")
+            print(time.time() - start_time )
 
         print("Done")
 if __name__ == "__main__":
