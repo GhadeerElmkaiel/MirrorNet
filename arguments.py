@@ -28,14 +28,24 @@ def get_args():
     parser.add_argument('--shuffle_dataset', action='store_false', default=True,
                         help='Shuffle thee dataset while training (default: True)')
     parser.add_argument('--batch_size', type=int, default=10,
-                        help='The batch size (default: 10)')
+                        help='The Training batch size (default: 10)')
+    parser.add_argument('--eval_batch_size', type=int, default=1,
+                        help='The evaluation batch size (default: 1)')
+    parser.add_argument('--test_batch_size', type=int, default=10,
+                        help='The Testing batch size (default: 10)')
     parser.add_argument('--epochs', type=int, default=500,
                         help='The number of epoches (default: 500)')
-    parser.add_argument('--device_ids', nargs='+', type=int, default=[0])
+    parser.add_argument('--device_ids', nargs='+', type=int, default=[0, 1])
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='disables CUDA training')
+    parser.add_argument('--w_losses', nargs='+', type=int, default=[1, 1, 1, 1],
+                        help='Weights for the 4 losses')
+
+
 
     # Optimizer parameters
+    parser.add_argument('--optim', type=str, default="adam",
+                        help='Name of the optimizer to use (default: adam)')
     parser.add_argument('--betas', nargs='+', type=int, default=[0.9, 0.999],
                         help='Betas values for Adam optimizer(default: (0.9, 0.999))')
     parser.add_argument('--lr', type=float, default=0.001,

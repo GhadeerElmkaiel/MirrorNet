@@ -1,13 +1,3 @@
-"""
- @Time    : 10/2/19 18:00
- @Author  : TaylorMei
- @Email   : mhy666@mail.dlut.edu.cn
- 
- @Project : ICCV2019_MirrorNet
- @File    : dataset.py
- @Function: prepare data for training.
- 
-"""
 import os
 import os.path
 

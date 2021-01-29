@@ -1,20 +1,20 @@
-"""
- @Time    : 9/29/19 17:16
- @Author  : TaylorMei
- @Email   : mhy666@mail.dlut.edu.cn
- 
- @Project : ICCV2019_MirrorNet
- @File    : mirrornet.py
- @Function: MirrorNet.
- 
-"""
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.utils.data import DataLoader
+from torchvision import transforms
+
+from dataset import ImageFolder
 
 from backbone.resnext.resnext101_regular import ResNeXt101
 import pytorch_lightning as pl
+from utils.optimizer import get_optim
 
+from utils.loss import lovasz_hinge
+
+
+
+to_pil = transforms.ToPILImage()
 
 ###################################################################
 # ########################## CBAM #################################
@@ -293,19 +293,27 @@ class MirrorNet(nn.Module):
         layer1_predict = F.upsample(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
 
         if self.training:
-            return layer4_predict, layer3_predict, layer2_predict, layer1_predict
+            m = torch.nn.ReLU()
+            # return layer4_predict, layer3_predict, layer2_predict, layer1_predict
+            return m(layer4_predict), m(layer3_predict), m(layer2_predict), m(layer1_predict)
 
         return torch.sigmoid(layer4_predict), torch.sigmoid(layer3_predict), torch.sigmoid(layer2_predict), \
                torch.sigmoid(layer1_predict)
 
 
 ###################################################################
-# ########################## NETWORK ##############################
+# ###################### LIGHTNINH NETWORK ########################
 ###################################################################
-class LitMirrorNet(pl.LigtningMolule):
-    def __init__(self, backbone_path=None):
-        super(MirrorNet, self).__init__()
+#TODO
+class LitMirrorNet(pl.LightningModule):
+    def __init__(self, args, backbone_path=None):
+        super(LitMirrorNet, self).__init__()
         resnext = ResNeXt101(backbone_path)
+        self.args = args
+        self.testing_path = args.msd_testing_root
+        self.training_path = args.msd_training_root
+        self.eval_path = args.msd_eval_root
+
         self.layer0 = resnext.layer0
         self.layer1 = resnext.layer1
         self.layer2 = resnext.layer2
@@ -335,6 +343,19 @@ class LitMirrorNet(pl.LigtningMolule):
         for m in self.modules():
             if isinstance(m, nn.ReLU):
                 m.inplace = True
+
+        ###############################
+        # Defining the transoformations
+        self.img_transform = transforms.Compose([
+            transforms.Resize((self.args.scale, self.args.scale)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        self.mask_transform = transforms.Compose([
+            transforms.Resize((self.args.scale, self.args.scale)),
+            transforms.ToTensor()
+        ])
+
 
     def forward(self, x):
         layer0 = self.layer0(x)
@@ -376,3 +397,84 @@ class LitMirrorNet(pl.LigtningMolule):
 
         return torch.sigmoid(layer4_predict), torch.sigmoid(layer3_predict), torch.sigmoid(layer2_predict), \
                torch.sigmoid(layer1_predict)
+
+    ###############################################
+    # Ligtning functions
+    def training_step(self, batch, batch_idx):
+        inputs = batch[0]
+        outputs = batch[1]
+        # inputs = torch.from_numpy(inputs)
+        # outputs = torch.tensor(outputs)
+
+        inputs.requires_grad=True
+        outputs.requires_grad=True
+        f_4_gpu, f_3_gpu, f_2_gpu, f_1_gpu = self(inputs)
+
+        loss1 = lovasz_hinge(outputs, f_1_gpu, per_image=False)*self.args.w_losses[0]
+        loss2 = lovasz_hinge(outputs, f_2_gpu, per_image=False)*self.args.w_losses[1]
+        loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*self.args.w_losses[2]
+        loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
+        loss = loss1 + loss2 + loss3 + loss4
+        self.log('train_loss', loss)
+        return {'loss': loss}
+
+    def configure_optimizers(self):
+        optimizer = get_optim(self, self.args)
+        return optimizer
+
+    def train_dataloader(self):
+        if self.args.developer_mode:
+            # To include the real images and masks
+            dataset = ImageFolder(self.training_path, img_transform= self.img_transform, target_transform= self.mask_transform, add_real_imgs=True)
+        else:
+            dataset = ImageFolder(self.training_path, img_transform= self.img_transform, target_transform= self.mask_transform)
+        
+        loader = DataLoader(dataset, batch_size= self.args.batch_size, num_workers = 4, shuffle=self.args.shuffle_dataset)
+
+        return loader
+
+    
+
+    def val_dataloader(self):
+        if self.args.developer_mode:
+            # To include the real images and masks
+            eval_dataset = ImageFolder(self.eval_path, img_transform= self.img_transform, target_transform= self.mask_transform, add_real_imgs=True)
+        else:
+            eval_dataset = ImageFolder(self.eval_path, img_transform= self.img_transform, target_transform= self.mask_transform)
+        
+        loader = DataLoader(eval_dataset, batch_size= self.args.eval_batch_size, num_workers = 4, shuffle=False)
+
+        return loader
+
+    def test_dataloader(self):
+        test_dataset = ImageFolder(self.testing_path, img_transform= self.img_transform, target_transform= self.mask_transform)
+        loader = DataLoader(test_dataset, batch_size= self.args.test_batch_size, num_workers = 4, shuffle=False)
+
+        return loader
+
+    
+    def validation_step(self, batch, batch_idx):
+        inputs = batch[0]
+        outputs = batch[1]
+        # inputs = torch.from_numpy(inputs)
+        # outputs = torch.tensor(outputs)
+
+        inputs.requires_grad=True
+        outputs.requires_grad=True
+        f_4_gpu, f_3_gpu, f_2_gpu, f_1_gpu = self(inputs)
+
+        loss1 = lovasz_hinge(outputs, f_1_gpu, per_image=False)*self.args.w_losses[0]
+        loss2 = lovasz_hinge(outputs, f_2_gpu, per_image=False)*self.args.w_losses[1]
+        loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*self.args.w_losses[2]
+        loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
+        loss = loss1 + loss2 + loss3 + loss4
+        # self.log('val_loss', loss)
+        return {'val_loss': loss}
+    
+    def validation_epoch_end(self, outputs):
+        # outputs = list of dictionaries
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        tensorboard_logs = {'avg_val_loss': avg_loss}
+        # use key 'log'
+        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+    
