@@ -29,10 +29,12 @@ from utils.loss import lovasz_hinge
 # Initializing the arguments for testing
 def init_args(args):
     args.train = True
-    args.batch_size = 6
+    args.batch_size = 26
     args.developer_mode = True
     args.load_model = True
+    args.fast_dev_run = False
     args.crf = True
+    args.device_ids = [0, 1]
 
 args = get_args()
 
@@ -297,7 +299,7 @@ def main():
         ##############################
         else:
             net = LitMirrorNet(args)
-            trainer = Trainer(gpus=args.device_ids ,fast_dev_run = True, accelerator='dp')
+            trainer = Trainer(gpus=args.device_ids ,fast_dev_run = args.fast_dev_run, accelerator='dp', max_epochs= args.epochs, auto_scale_batch_size=False)
             trainer.fit(net)
 
         print("Done")

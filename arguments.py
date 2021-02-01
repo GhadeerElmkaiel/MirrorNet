@@ -23,6 +23,8 @@ def get_args():
     # Training parameters
     parser.add_argument('--train', action='store_true', default=False,
                         help='Train the model (default: False)')
+    parser.add_argument('--fast_dev_run', action='store_true', default=False,
+                        help='Do fast eval run to test if every thing is Okay (default: False)')
     parser.add_argument('--load_model', action='store_true', default=False,
                         help='Load pretrained model "named in snapshot"(default: False)')
     parser.add_argument('--shuffle_dataset', action='store_false', default=True,

@@ -1,0 +1,9 @@
+For multiple GPU training using pytorch lightning:
+
+For logging use self.log, and don't return dictionary.
+
+- training_step: CAN NOT return dict. I need to use self.log for logging, and return loss value.
+- validation_step: Can return dict
+
+- validation_epoch_end:
+Shouldn't return any thing.

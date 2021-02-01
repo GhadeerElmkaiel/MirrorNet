@@ -1,20 +1,38 @@
+import os
+import numpy as np
+
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from misc import check_mkdir, crf_refine
 from dataset import ImageFolder
-
 from backbone.resnext.resnext101_regular import ResNeXt101
+
 import pytorch_lightning as pl
 from utils.optimizer import get_optim
+from PIL import Image
+
 
 from utils.loss import lovasz_hinge
 
 
 
 to_pil = transforms.ToPILImage()
+
+
+# ###################################################################
+# # ######################### Upsamle ###############################
+# ###################################################################
+# class Upsample(nn.Module):
+#     def __init__(self,  scale_factor):
+#         super(Upsample, self).__init__()
+#         self.scale_factor = scale_factor
+#     def forward(self, x):
+#         return F.interpolate(x, scale_factor=self.scale_factor)
+
 
 ###################################################################
 # ########################## CBAM #################################
@@ -287,10 +305,15 @@ class MirrorNet(nn.Module):
         cbam_1 = self.cbam_1(up_1)
         layer1_predict = self.layer1_predict(cbam_1)
 
-        layer4_predict = F.upsample(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer3_predict = F.upsample(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer2_predict = F.upsample(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer1_predict = F.upsample(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer4_predict = F.upsample(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer3_predict = F.upsample(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer2_predict = F.upsample(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer1_predict = F.upsample(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+
+        layer4_predict = F.interpolate(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer3_predict = F.interpolate(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer2_predict = F.interpolate(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer1_predict = F.interpolate(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
 
         if self.training:
             m = torch.nn.ReLU()
@@ -309,6 +332,7 @@ class LitMirrorNet(pl.LightningModule):
     def __init__(self, args, backbone_path=None):
         super(LitMirrorNet, self).__init__()
         resnext = ResNeXt101(backbone_path)
+        self.val_iter = 0
         self.args = args
         self.testing_path = args.msd_testing_root
         self.training_path = args.msd_training_root
@@ -387,10 +411,15 @@ class LitMirrorNet(pl.LightningModule):
         cbam_1 = self.cbam_1(up_1)
         layer1_predict = self.layer1_predict(cbam_1)
 
-        layer4_predict = F.upsample(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer3_predict = F.upsample(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer2_predict = F.upsample(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
-        layer1_predict = F.upsample(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer4_predict = F.upsample(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer3_predict = F.upsample(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer2_predict = F.upsample(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        # layer1_predict = F.upsample(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+
+        layer4_predict = F.interpolate(layer4_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer3_predict = F.interpolate(layer3_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer2_predict = F.interpolate(layer2_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
+        layer1_predict = F.interpolate(layer1_predict, size=x.size()[2:], mode='bilinear', align_corners=True)
 
         if self.training:
             return layer4_predict, layer3_predict, layer2_predict, layer1_predict
@@ -436,8 +465,6 @@ class LitMirrorNet(pl.LightningModule):
 
         return loader
 
-    
-
     def val_dataloader(self):
         if self.args.developer_mode:
             # To include the real images and masks
@@ -446,7 +473,7 @@ class LitMirrorNet(pl.LightningModule):
             eval_dataset = ImageFolder(self.eval_path, img_transform= self.img_transform, target_transform= self.mask_transform)
         
         loader = DataLoader(eval_dataset, batch_size= self.args.eval_batch_size, num_workers = 4, shuffle=False)
-
+        self.eval_set = eval_dataset
         return loader
 
     def test_dataloader(self):
@@ -455,7 +482,6 @@ class LitMirrorNet(pl.LightningModule):
 
         return loader
 
-    
     def validation_step(self, batch, batch_idx):
         inputs = batch[0]
         outputs = batch[1]
@@ -478,7 +504,37 @@ class LitMirrorNet(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         # outputs = list of dictionaries
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'avg_val_loss': avg_loss}
-        # use key 'log'
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        if self.args.developer_mode:
+            batch = self.eval_set.sample(1)
+            inputs = batch["img"]
+            outputs = batch["mask"]
+            inputs = torch.from_numpy(inputs)
+            outputs = torch.tensor(outputs)
+            if len(self.args.device_ids) > 0:
+                inputs = inputs.cuda(self.args.device_ids[0])
+                outputs = outputs.cuda(self.args.device_ids[0])
+            f_4_gpu, f_3_gpu, f_2_gpu, f_1_gpu = self(inputs)
+            f_1 = f_1_gpu.data.cpu()
+            rev_size = [batch["size"][0][1], batch["size"][0][0]]
+            image1_size = batch["size"][0]
+            f_1_trans = np.array(transforms.Resize(rev_size)(to_pil(f_1[0])))
+            f_1_crf = crf_refine(np.array(batch["r_img"][0]), f_1_trans)
+            
+            new_image = Image.new('RGB',(3*image1_size[0], image1_size[1]), (250,250,250))
+            img_res = Image.fromarray(f_1_crf)
+            new_image.paste(batch["r_img"][0],(0,0))
+            new_image.paste(batch["r_mask"][0],(image1_size[0],0))
+            new_image.paste(img_res,(image1_size[0]*2,0))
+
+            # The number of validation itteration
+            self.val_iter +=1 
+            new_image.save(os.path.join(self.args.msd_results_root, "Training",
+                                                    "Eval_Epoch: " + str(self.val_iter) +" Eval.png"))
+
+                
+
+        # tensorboard_logs = {'avg_val_loss': avg_loss}
+        # # use key 'log'
+        # return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        self.log('avg_val_loss', avg_loss)
     
