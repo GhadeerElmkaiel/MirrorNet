@@ -12,6 +12,8 @@ from torch.utils.data import DataLoader
 from torch import optim
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+
 
 # from config import msd_testing_root, msd_results_root
 from misc import check_mkdir, crf_refine
@@ -21,9 +23,6 @@ from dataset import ImageFolder
 from arguments import get_args
 
 from utils.loss import lovasz_hinge
-
-
-
 
 #######################################
 # Initializing the arguments for testing
@@ -35,8 +34,22 @@ def init_args(args):
     args.fast_dev_run = False
     args.crf = True
     args.device_ids = [0, 1]
+    args.val_every = 5
 
 args = get_args()
+
+
+#######################################
+# Checkpoint call back for saving the best models
+# 
+checkpoint_callback = ModelCheckpoint(
+    monitor= args.monitor,
+    dirpath= args.root_path + args.ckpt_path,
+    filename= 'MirrorNet-{epoch:02d}-{val_loss:.2f}',
+    save_top_k= args.save_top,
+    mode='min',
+)
+
 
 # change the argumnets for testing
 init_args(args)
@@ -298,9 +311,21 @@ def main():
         # Using multiple GPUs                 args.device_ids = [0, 1, ...]
         ##############################
         else:
+            # print("1")
+            # LitMirrorNet(args).load_from_checkpoint(args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
+            # print("2")
             net = LitMirrorNet(args)
-            trainer = Trainer(gpus=args.device_ids ,fast_dev_run = args.fast_dev_run, accelerator='dp', max_epochs= args.epochs, auto_scale_batch_size=False)
+            # net = net.load_from_checkpoint(args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
+            trainer = Trainer(gpus=args.device_ids,
+                            fast_dev_run = args.fast_dev_run,
+                            accelerator = 'dp',
+                            max_epochs = args.epochs,
+                            callbacks = [checkpoint_callback],
+                            check_val_every_n_epoch = args.val_every)
+                            # resume_from_checkpoint = args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
             trainer.fit(net)
+            final_epoch_model_path = args.root_path + args.ckpt_path + "/final_epoch.ckpt"
+            trainer.save_checkpoint(final_epoch_model_path)
 
         print("Done")
 if __name__ == "__main__":

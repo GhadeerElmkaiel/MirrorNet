@@ -501,6 +501,7 @@ class LitMirrorNet(pl.LightningModule):
         return {'val_loss': loss}
         # return loss
     
+    # Function which is activated when the validation epoch wnds
     def validation_epoch_end(self, outputs):
         # outputs = list of dictionaries
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()

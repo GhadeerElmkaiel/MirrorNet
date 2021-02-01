@@ -20,6 +20,7 @@ def get_args():
     parser.add_argument('--save_images', action='store_true', default=False,
                         help='save images as f_4, f_3, f_2, f_1 (default: False)')
 
+
     # Training parameters
     parser.add_argument('--train', action='store_true', default=False,
                         help='Train the model (default: False)')
@@ -35,14 +36,19 @@ def get_args():
                         help='The evaluation batch size (default: 1)')
     parser.add_argument('--test_batch_size', type=int, default=10,
                         help='The Testing batch size (default: 10)')
-    parser.add_argument('--epochs', type=int, default=500,
+    parser.add_argument('--epochs', type=int, default=2500,
                         help='The number of epoches (default: 500)')
     parser.add_argument('--device_ids', nargs='+', type=int, default=[0, 1])
     parser.add_argument('--no_cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--w_losses', nargs='+', type=int, default=[1, 1, 1, 1],
                         help='Weights for the 4 losses')
-
+    parser.add_argument('--val_every', type=int, default=5,
+                        help='Do validation epoch after how many Training epoch (default: 5)')
+    parser.add_argument('--save_top', type=int, default=8,
+                        help='The number of the top models to save (default: 8)')
+    parser.add_argument('--monitor', type=str, default="val_loss",
+                        help='The Name of the value to monitor in order to save models (default: val_loss)')
 
 
     # Optimizer parameters
