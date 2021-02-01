@@ -416,7 +416,10 @@ class LitMirrorNet(pl.LightningModule):
         loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
         loss = loss1 + loss2 + loss3 + loss4
         self.log('train_loss', loss)
-        return {'loss': loss}
+        # # This does not work
+        # # This give back the error: RuntimeError: grad can be implicitly created only for scalar outputs
+        # return {'loss': loss}
+        return loss
 
     def configure_optimizers(self):
         optimizer = get_optim(self, self.args)
@@ -468,8 +471,9 @@ class LitMirrorNet(pl.LightningModule):
         loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*self.args.w_losses[2]
         loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
         loss = loss1 + loss2 + loss3 + loss4
-        # self.log('val_loss', loss)
+        self.log('val_loss', loss)
         return {'val_loss': loss}
+        # return loss
     
     def validation_epoch_end(self, outputs):
         # outputs = list of dictionaries

@@ -105,7 +105,9 @@ def main():
     if args.train:
         print("Training")
 
-        # Using one GPU
+        ##############################
+        # Using one GPU                 args.device_ids = [0]
+        ##############################
         if len(args.device_ids) == 1:
             idx = 0
             ##############################
@@ -290,10 +292,12 @@ def main():
                     text = text.ljust(45)
                     eval_pbar.set_description(text)
 
-        # Using multiple GPUs
+        ##############################
+        # Using multiple GPUs                 args.device_ids = [0, 1, ...]
+        ##############################
         else:
             net = LitMirrorNet(args)
-            trainer = Trainer(gpus=args.device_ids ,fast_dev_run = True)
+            trainer = Trainer(gpus=args.device_ids ,fast_dev_run = True, accelerator='dp')
             trainer.fit(net)
 
         print("Done")
