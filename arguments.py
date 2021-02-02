@@ -60,13 +60,13 @@ def get_args():
                         help='Learning rate for Adam optimizer (default: 0.001)')
 
 
-    # Paths 
+    # Paths and Names
     parser.add_argument('--snapshot', type=str, default="MirrorNet",
                         help='Name of the snapshot to load (default: MirrorNet)')
     parser.add_argument('--root_path', type=str, default=root_path,
                         help='the root path (default: {})'.format(root_path))
-    parser.add_argument('--ckpt_path', type=str, default="/ckpt",
-                        help='Path to the checkpoints (default: /ckpt)')
+    parser.add_argument('--ckpt_path', type=str, default="ckpt/",
+                        help='Path to the checkpoints (default: ckpt/)')
     parser.add_argument('--exp_name', type=str, default="MirrorNet",
                         help='Name of the folder of the snapshot to load (default: MirrorNet)')
     parser.add_argument('--backbone_path', type=str, default=root_path+"/backbone/resnext/resnext_101_32x4d.pth",
@@ -79,6 +79,12 @@ def get_args():
                         help='Path to the testing data (default: '+root_path+'/MSD/test')
     parser.add_argument('--msd_results_root', type=str, default=root_path+"/MSD/results",
                         help='Path results path (default: '+root_path+'/MSD/results')
+    parser.add_argument('--log_path', type=str, default="logs/",
+                        help='Path to the logs folder (default: logs/')
+    parser.add_argument('--log_name', type=str, default="lightning_logs",
+                        help='The name of TB logger (default: lightning_logs')
+
+                        
 
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()

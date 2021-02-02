@@ -13,6 +13,7 @@ from torch import optim
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import loggers as pl_loggers
 
 
 # from config import msd_testing_root, msd_results_root
@@ -28,7 +29,7 @@ from utils.loss import lovasz_hinge
 # Initializing the arguments for testing
 def init_args(args):
     args.train = True
-    args.batch_size = 26
+    args.batch_size = 20
     args.developer_mode = True
     args.load_model = True
     args.fast_dev_run = False
@@ -44,11 +45,14 @@ args = get_args()
 # 
 checkpoint_callback = ModelCheckpoint(
     monitor= args.monitor,
-    dirpath= args.root_path + args.ckpt_path,
+    dirpath= args.ckpt_path,
     filename= 'MirrorNet-{epoch:02d}-{val_loss:.2f}',
     save_top_k= args.save_top,
     mode='min',
 )
+
+tb_logger = pl_loggers.TensorBoardLogger(save_dir = args.log_path,
+                                        name = args.log_name)
 
 
 # change the argumnets for testing
@@ -89,9 +93,9 @@ def main():
     if args.load_model:
         # print(os.path.join(args.root_path + args.ckpt_path, args.exp_name, args.snapshot + '.pth'))
         print('Load snapshot {} for testing'.format(args.snapshot))
-        net.load_state_dict(torch.load(os.path.join(args.root_path + args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
+        net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
         # net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
-        print('Load {} succeed!'.format(os.path.join(args.root_path + args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
+        print('Load {} succeed!'.format(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
 
     if not args.train:
         net.eval()
@@ -232,10 +236,10 @@ def main():
                     # f_1_arr_no_resize = torch.tensor(f_1_arr_no_resize)
                     # loss = lovasz_hinge(torch.tensor(batch["mask"]), f_1_arr_no_resize, per_image=False)
 
-                    loss1 = lovasz_hinge(outputs, f_1_gpu, per_image=False)*args.w_losses[0]
-                    loss2 = lovasz_hinge(outputs, f_2_gpu, per_image=False)*args.w_losses[1]
-                    loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*args.w_losses[2]
-                    loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*args.w_losses[3]
+                    loss1 = lovasz_hinge(f_1_gpu, outputs, per_image=False)*args.w_losses[0]
+                    loss2 = lovasz_hinge(f_2_gpu, outputs, per_image=False)*args.w_losses[1]
+                    loss3 = lovasz_hinge(f_3_gpu, outputs, per_image=False)*args.w_losses[2]
+                    loss4 = lovasz_hinge(f_4_gpu, outputs, per_image=False)*args.w_losses[3]
                     loss = loss1 + loss2 + loss3 + loss4
                     # outputs.requires_grad = False
                     # L2 = torch.nn.BCELoss()
@@ -298,7 +302,7 @@ def main():
                             print("Image saved")
                         idx +=1
 
-                    eval_loss = lovasz_hinge(outputs, f_1_gpu, per_image=False)
+                    eval_loss = lovasz_hinge(f_1_gpu, outputs, per_image=False)
 
                     res = eval_loss.data.cpu()
 
@@ -321,10 +325,11 @@ def main():
                             accelerator = 'dp',
                             max_epochs = args.epochs,
                             callbacks = [checkpoint_callback],
-                            check_val_every_n_epoch = args.val_every)
+                            check_val_every_n_epoch = args.val_every,
+                            logger = tb_logger)
                             # resume_from_checkpoint = args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
             trainer.fit(net)
-            final_epoch_model_path = args.root_path + args.ckpt_path + "/final_epoch.ckpt"
+            final_epoch_model_path = args.ckpt_path + "final_epoch.ckpt"
             trainer.save_checkpoint(final_epoch_model_path)
 
         print("Done")

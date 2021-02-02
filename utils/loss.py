@@ -22,6 +22,7 @@ def flatten_binary_scores(scores, labels, ignore=None):
     vlabels = labels[valid]
     return vscores, vlabels
 
+
 def lovasz_grad(gt_sorted):
     """
     Computes gradient of the Lovasz extension w.r.t sorted errors
@@ -35,6 +36,7 @@ def lovasz_grad(gt_sorted):
     if p > 1: # cover 1-pixel case
         jaccard[1:p] = jaccard[1:p] - jaccard[0:-1]
     return jaccard
+
 
 def lovasz_hinge(logits, labels, per_image=True, ignore=None):
     """
@@ -51,6 +53,7 @@ def lovasz_hinge(logits, labels, per_image=True, ignore=None):
         loss = lovasz_hinge_flat(*flatten_binary_scores(logits, labels, ignore))
     return loss
 
+
 def lovasz_hinge_flat(logits, labels):
     """
     Binary Lovasz hinge loss
@@ -61,8 +64,10 @@ def lovasz_hinge_flat(logits, labels):
     if len(labels) == 0:
         # only void pixels, the gradients should be 0
         return logits.sum() * 0.
-    signs = 2. * labels.float() - 1.
-    errors = (1. - logits * Variable(signs))
+    # signs = 2. * labels.float() - 1.
+    errors = (1. - logits)*labels + logits*(1. - labels)
+    ## Old error for output values in the range [-1 1]
+    # errors = (1. - logits*Variable(signs))
     errors_sorted, perm = torch.sort(errors, dim=0, descending=True)
     perm = perm.data
     gt_sorted = labels[perm]
@@ -141,7 +146,6 @@ def flatten_probas(probas, labels, ignore=None):
     vprobas = probas[valid.nonzero().squeeze()]
     vlabels = labels[valid]
     return vprobas, vlabels
-
 
 
 def isnan(x):

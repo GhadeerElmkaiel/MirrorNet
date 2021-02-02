@@ -439,12 +439,13 @@ class LitMirrorNet(pl.LightningModule):
         outputs.requires_grad=True
         f_4_gpu, f_3_gpu, f_2_gpu, f_1_gpu = self(inputs)
 
-        loss1 = lovasz_hinge(outputs, f_1_gpu, per_image=False)*self.args.w_losses[0]
-        loss2 = lovasz_hinge(outputs, f_2_gpu, per_image=False)*self.args.w_losses[1]
-        loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*self.args.w_losses[2]
-        loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
+        loss1 = lovasz_hinge(f_1_gpu, outputs, per_image=False)*self.args.w_losses[0]
+        loss2 = lovasz_hinge(f_2_gpu, outputs, per_image=False)*self.args.w_losses[1]
+        loss3 = lovasz_hinge(f_3_gpu, outputs, per_image=False)*self.args.w_losses[2]
+        loss4 = lovasz_hinge(f_4_gpu, outputs, per_image=False)*self.args.w_losses[3]
         loss = loss1 + loss2 + loss3 + loss4
         self.log('train_loss', loss)
+        # self.logger.experiment.log('train_loss', loss)
         # # This does not work
         # # This give back the error: RuntimeError: grad can be implicitly created only for scalar outputs
         # return {'loss': loss}
@@ -492,12 +493,13 @@ class LitMirrorNet(pl.LightningModule):
         outputs.requires_grad=True
         f_4_gpu, f_3_gpu, f_2_gpu, f_1_gpu = self(inputs)
 
-        loss1 = lovasz_hinge(outputs, f_1_gpu, per_image=False)*self.args.w_losses[0]
-        loss2 = lovasz_hinge(outputs, f_2_gpu, per_image=False)*self.args.w_losses[1]
-        loss3 = lovasz_hinge(outputs, f_3_gpu, per_image=False)*self.args.w_losses[2]
-        loss4 = lovasz_hinge(outputs, f_4_gpu, per_image=False)*self.args.w_losses[3]
+        loss1 = lovasz_hinge(f_1_gpu, outputs, per_image=False)*self.args.w_losses[0]
+        loss2 = lovasz_hinge(f_2_gpu, outputs, per_image=False)*self.args.w_losses[1]
+        loss3 = lovasz_hinge(f_3_gpu, outputs, per_image=False)*self.args.w_losses[2]
+        loss4 = lovasz_hinge(f_4_gpu, outputs, per_image=False)*self.args.w_losses[3]
         loss = loss1 + loss2 + loss3 + loss4
         self.log('val_loss', loss)
+        # self.logger.experiment.log('val_loss', loss)
         return {'val_loss': loss}
         # return loss
     
@@ -538,4 +540,5 @@ class LitMirrorNet(pl.LightningModule):
         # # use key 'log'
         # return {'val_loss': avg_loss, 'log': tensorboard_logs}
         self.log('avg_val_loss', avg_loss)
+        # self.logger.experiment.log('avg_val_loss', avg_loss)
     
