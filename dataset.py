@@ -26,7 +26,11 @@ class ImageFolder(data.Dataset):
     def __getitem__(self, index):
         img_path, gt_path = self.imgs[index]
         img = Image.open(img_path).convert('RGB')
+        real_img = np.array(img)
+
         target = Image.open(gt_path)
+        real_target = np.array(target)
+
         if self.joint_transform is not None:
             img, target = self.joint_transform(img, target)
         if self.img_transform is not None:
@@ -34,7 +38,10 @@ class ImageFolder(data.Dataset):
         if self.target_transform is not None:
             target = self.target_transform(target)
 
-        return img, target
+        if self.add_real_imgs:
+            return img, target, real_img, real_target
+        else:
+            return img, target
 
     def __len__(self):
         return self.len
@@ -56,9 +63,13 @@ class ImageFolder(data.Dataset):
             mask = Image.open(gt_path)
             
             # Adding the real images to the batch for debugging if needed
-            if self.add_real_imgs:
-                batch["r_img"].append(img)
-                batch["r_mask"].append(mask)
+            # if self.add_real_imgs:
+            #     batch["r_img"].append(img)
+            #     batch["r_mask"].append(mask)
+
+
+            batch["r_img"].append(img)
+            batch["r_mask"].append(mask)
             
             # Adding the real image size to the batch
             w, h = img.size

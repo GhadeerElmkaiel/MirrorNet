@@ -15,27 +15,24 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers as pl_loggers
 
-
-# from config import msd_testing_root, msd_results_root
 from misc import check_mkdir, crf_refine
 from mirrornet import MirrorNet, LitMirrorNet
 from dataset import ImageFolder
-
 from arguments import get_args
-
 from utils.loss import lovasz_hinge
 
 #######################################
 # Initializing the arguments for testing
 def init_args(args):
-    args.train = True
+    args.train = False
     args.batch_size = 20
-    args.developer_mode = True
+    args.developer_mode = False
     args.load_model = True
     args.fast_dev_run = False
     args.crf = True
     args.device_ids = [0, 1]
     args.val_every = 5
+    args.test_batch_size = 1
 
 args = get_args()
 
@@ -46,7 +43,7 @@ args = get_args()
 checkpoint_callback = ModelCheckpoint(
     monitor= args.monitor,
     dirpath= args.ckpt_path,
-    filename= 'MirrorNet-{epoch:02d}-{val_loss:.2f}',
+    filename= 'MirrorNet-{epoch:03d}-{val_loss:.2f}',
     save_top_k= args.save_top,
     mode='min',
 )
@@ -57,8 +54,6 @@ tb_logger = pl_loggers.TensorBoardLogger(save_dir = args.log_path,
 
 # change the argumnets for testing
 init_args(args)
-
-
 
 ###############################
 # Defining the transoformations
@@ -80,54 +75,57 @@ np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
+    pl.utilities.seed.seed_everything(seed = args.seed)
 
 # device_ids = [0]
 device_ids = args.device_ids
-torch.cuda.set_device(device_ids[0])
+if args.cuda:
+    torch.cuda.set_device(device_ids[0])
 
 
 def main():
-    net = MirrorNet().cuda(device_ids[0])
-    optimizer = optim.Adam(net.parameters(), lr=args.lr, betas=args.betas)
+    ##############################
+    # Using one GPU                 args.device_ids = [0]
+    ##############################
+    if len(args.device_ids) == 1:
+        net = MirrorNet().cuda(device_ids[0])
+        optimizer = optim.Adam(net.parameters(), lr=args.lr, betas=args.betas)
 
-    if args.load_model:
-        # print(os.path.join(args.root_path + args.ckpt_path, args.exp_name, args.snapshot + '.pth'))
-        print('Load snapshot {} for testing'.format(args.snapshot))
-        net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
-        # net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
-        print('Load {} succeed!'.format(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
+        if args.load_model:
+            # print(os.path.join(args.root_path + args.ckpt_path, args.exp_name, args.snapshot + '.pth'))
+            print('Load snapshot {} for testing'.format(args.snapshot))
+            net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
+            # net.load_state_dict(torch.load(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
+            print('Load {} succeed!'.format(os.path.join(args.ckpt_path, args.exp_name, args.snapshot + '.pth')))
 
-    if not args.train:
-        net.eval()
-        data_path = args.msd_testing_root
-    else:
-        data_path = args.msd_training_root
-        eval_path = args.msd_eval_root
-        net.train()
+        if not args.train:
+            net.eval()
+            data_path = args.msd_testing_root
+        else:
+            data_path = args.msd_training_root
+            eval_path = args.msd_eval_root
+            net.train()
 
-    if args.developer_mode:
-        # To include the real images and masks
-        dataset = ImageFolder(data_path, img_transform= img_transform, target_transform=mask_transform, add_real_imgs=True)
-        eval_dataset = ImageFolder(eval_path, img_transform= img_transform, target_transform=mask_transform, add_real_imgs=True)
-    else:
-        dataset = ImageFolder(data_path, img_transform= img_transform, target_transform=mask_transform)
-        eval_dataset = ImageFolder(eval_path, img_transform= img_transform, target_transform=mask_transform)
+        if args.developer_mode:
+            # To include the real images and masks
+            dataset = ImageFolder(data_path, img_transform= img_transform, target_transform=mask_transform, add_real_imgs=True)
+            eval_dataset = ImageFolder(eval_path, img_transform= img_transform, target_transform=mask_transform, add_real_imgs=True)
+        else:
+            dataset = ImageFolder(data_path, img_transform= img_transform, target_transform=mask_transform)
+            eval_dataset = ImageFolder(eval_path, img_transform= img_transform, target_transform=mask_transform)
 
-    loader = DataLoader(dataset, batch_size= args.batch_size, shuffle=args.shuffle_dataset)
-    eval_loader = DataLoader(eval_dataset, batch_size = 1, shuffle=False)
+        loader = DataLoader(dataset, batch_size= args.batch_size, shuffle=args.shuffle_dataset)
+        eval_loader = DataLoader(eval_dataset, batch_size = 1, shuffle=False)
 
-    # batch = dataset.sample(3)
-    # batch["img"][0].show()
-    # batch["mask"][0].show()
-    # print(batch)
-    
-    if args.train:
-        print("Training")
+        # batch = dataset.sample(3)
+        # batch["img"][0].show()
+        # batch["mask"][0].show()
+        # print(batch)
 
-        ##############################
-        # Using one GPU                 args.device_ids = [0]
-        ##############################
-        if len(args.device_ids) == 1:
+
+        if args.train:
+            print("Training")
+            
             idx = 0
             ##############################
             # Training for number of epoches
@@ -177,10 +175,7 @@ def main():
                                                                     "Epoch: " + str(epoch) +" Trining.png"))
                             print("Image saved")
                         idx +=1
-                    # f_4.requires_grad = True
-                    # f_3.requires_grad = True
-                    # f_2.requires_grad = True
-                    # f_1.requires_grad = True
+
 
                     ##############################
                     # # For image processing
@@ -311,15 +306,26 @@ def main():
                     text = text.ljust(45)
                     eval_pbar.set_description(text)
 
-        ##############################
-        # Using multiple GPUs                 args.device_ids = [0, 1, ...]
-        ##############################
+    ##############################
+    # Using multiple GPUs                 args.device_ids = [0, 1, ...]
+    ##############################
+    else:
+
+        net = LitMirrorNet(args)
+        # net = net.load_from_checkpoint(args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
+        if args.load_model:
+            net = LitMirrorNet.load_from_checkpoint(args.ckpt_path+args.ckpt_name, args=args)
+            print('Loading {} checkpoint.'.format(args.ckpt_path + args.ckpt_name))
+            trainer = Trainer(gpus=args.device_ids,
+                            fast_dev_run = args.fast_dev_run,
+                            accelerator = 'dp',
+                            max_epochs = args.epochs,
+                            callbacks = [checkpoint_callback],
+                            check_val_every_n_epoch = args.val_every,
+                            logger = tb_logger,
+                            resume_from_checkpoint = args.ckpt_path+args.ckpt_name)
+            print("Checkpoint loaded successfully!")
         else:
-            # print("1")
-            # LitMirrorNet(args).load_from_checkpoint(args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
-            # print("2")
-            net = LitMirrorNet(args)
-            # net = net.load_from_checkpoint(args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
             trainer = Trainer(gpus=args.device_ids,
                             fast_dev_run = args.fast_dev_run,
                             accelerator = 'dp',
@@ -328,10 +334,22 @@ def main():
                             check_val_every_n_epoch = args.val_every,
                             logger = tb_logger)
                             # resume_from_checkpoint = args.root_path + args.ckpt_path + "/MirrorNet-epoch=16-val_loss=3.99.ckpt")
+        
+    
+        if args.train:
+            print("Training")
+
             trainer.fit(net)
             final_epoch_model_path = args.ckpt_path + "final_epoch.ckpt"
             trainer.save_checkpoint(final_epoch_model_path)
 
-        print("Done")
+            print("Done")
+
+        else:
+            print("Testing")
+            # trainer.test(model = net,
+            #             ckpt_path = args.ckpt_path+args.ckpt_name)
+            trainer.test(model = net)
+
 if __name__ == "__main__":
     main()

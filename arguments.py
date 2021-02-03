@@ -36,7 +36,7 @@ def get_args():
                         help='The evaluation batch size (default: 1)')
     parser.add_argument('--test_batch_size', type=int, default=10,
                         help='The Testing batch size (default: 10)')
-    parser.add_argument('--epochs', type=int, default=2500,
+    parser.add_argument('--epochs', type=int, default=200,
                         help='The number of epoches (default: 500)')
     parser.add_argument('--device_ids', nargs='+', type=int, default=[0, 1])
     parser.add_argument('--no_cuda', action='store_true', default=False,
@@ -67,6 +67,8 @@ def get_args():
                         help='the root path (default: {})'.format(root_path))
     parser.add_argument('--ckpt_path', type=str, default="ckpt/",
                         help='Path to the checkpoints (default: ckpt/)')
+    parser.add_argument('--ckpt_name', type=str, default="MirrorNet-epoch=44-val_loss=2.15.ckpt",
+                        help='Name of the checkpoint to load (default: MirrorNet-epoch=44-val_loss=2.15.ckpt)')
     parser.add_argument('--exp_name', type=str, default="MirrorNet",
                         help='Name of the folder of the snapshot to load (default: MirrorNet)')
     parser.add_argument('--backbone_path', type=str, default=root_path+"/backbone/resnext/resnext_101_32x4d.pth",
